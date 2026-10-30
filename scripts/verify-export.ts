@@ -4,7 +4,7 @@ import ExcelJS from "exceljs";
 import { exportReporteeWorkbook, exportSheetOrder } from "../src/infrastructure/excel/export-workbook";
 import { importWorkbook } from "../src/infrastructure/excel/import-workbook";
 
-const files = ["Utkarsh_OKR_Checklist_Linked_0.3.xlsx", "Krishna_OKR_Checklist_Linked_v0.2.xlsx", "Santosh_OKR_Checklist_Linked_0.3.xlsx"];
+const files = ["Utkarsh_OKR_Checklist_Linked_0.4.xlsx", "Krishna_OKR_Checklist_Linked_0.4.xlsx", "Santosh_OKR_Checklist_Linked_0.4.xlsx"];
 
 function cellValue(value: ExcelJS.CellValue): string {
   if (value == null) return "";

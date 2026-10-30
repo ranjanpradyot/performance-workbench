@@ -1,12 +1,14 @@
 # Workbook analysis
 
-Inspected on 19 October 2026 with openpyxl 3.1.5. The files were read only. Nothing in the source workbooks was edited.
+Inspected on 19 October 2026. The linked corrections below were written into the workbooks on 29 October 2026.
 
 | Workbook | Sheets | Formulas |
 | --- | ---: | ---: |
 | Utkarsh_OKR_Checklist_Linked_0.3.xlsx | 26 | 10, all on KPI_2025 and KPI_2026 |
-| Krishna_OKR_Checklist_Linked_v0.2.xlsx | 25 | 0 |
+| Krishna_OKR_Checklist_Linked_0.3.xlsx | 26 | weight formulas on KPI_2025 and KPI_2026 |
+| Krishna_OKR_Checklist_Linked_v0.2.xlsx | 25 | 0. Kept as the full-year review copy. |
 | Santosh_OKR_Checklist_Linked_0.3.xlsx | 28 | 11, on KPI_2025 and KPI_2026 |
+| Santosh_OKR_Checklist_Linked_0.4.xlsx | 30 | Same KPI formulas as 0.3, plus the Q3-2026 ticket tracker |
 
 Santosh was supplied with the other two files and is included. The three workbooks are not the same profile.
 
@@ -18,21 +20,21 @@ Document_Summary, KPI_2025, KPI_2026, OKR_Summary, OKR_Checklist_Summary, Utkars
 
 ### Krishna
 
-Same family, without Document_Summary. Checklist sheet is Krishna_OKR_Checklist. Master sheet is Tickets_Master_Krishna. Learning_Evidence sits before Ticket_Velocity. No Q2-2025 sheets. The master still contains Q3-2026 tickets, and Ticket_Velocity has an out-of-scope Q3-2026 row.
+v0.3 starts with Document_Summary, then the same family as v0.2. Checklist sheet is Krishna_OKR_Checklist. Master sheet is Tickets_Master_Krishna. Learning_Evidence sits before Ticket_Velocity. No Q2-2025 sheets. The master still contains Q3-2026 tickets, and Ticket_Velocity has an out-of-scope Q3-2026 row. v0.2 has no Document_Summary.
 
 ### Santosh
 
-Document_Summary through Rework_Reopen_Proxy, then Learning_Evidence (after rework, not before velocity), Tickets_Master_Santosh, then Q2-2025, Q3-2025, Q4-2025, Q1-2026, and Q2-2026 ticket pairs. The master also contains Q4-2024, Q1-2025, and Q3-2026 rows that do not all have their own sheets.
+Document_Summary through Rework_Reopen_Proxy, then Learning_Evidence (after rework, not before velocity), Tickets_Master_Santosh, then Q2-2025, Q3-2025, Q4-2025, Q1-2026, and Q2-2026 ticket pairs. v0.4 adds Q3-2026_Tickets and Q3-2026_Ticket_Summary in that same layout, with the same link back to the Santosh checklist. The master still has Q1-2025 rows without their own sheet. Q4-2024 has no remaining tickets after 16797 moved to Q3-2026.
 
 ## People, taken only from the sheets
 
 | Person | Employee ID | Title | Manager | Score model |
 | --- | --- | --- | --- | --- |
 | Utkarsh | 1775 | SSE | blank | Scoped. Annual weight / 4 × 2 on the KPI sheet. Quarter weight = annual / 4. |
-| Krishna | blank | TSE | blank | Full annual weight on the scorecard for each quarter. v0.2, not the later /4 rule. |
-| Santosh | blank | LE | Kiran Sangem, from the RM column | Same scoped rule as Utkarsh. Extra 2026 KPI: Growth. |
+| Krishna | 2012 | TSE | blank | v0.3 uses the same scoped rule as Utkarsh. The v0.2 file still stores the full annual weight on each quarter. |
+| Santosh | 2021 | LE | Kiran Sangem, from the RM column | Same scoped rule and the same three 2026 KPIs as Utkarsh. |
 
-No employee IDs were invented for Krishna or Santosh.
+Krishna 2012 and Santosh 2021 are written on the KPI EmployeeID column, on each KPI row, the same way Utkarsh 1775 is stored.
 
 ## Score rules that must not be merged
 
@@ -40,11 +42,11 @@ Utkarsh 0.3 and Santosh 0.3 say: a KPI marked Yes gets the full quarter weight (
 
 Utkarsh weights: 2025 Project Delivery 58, Process Adherance 12, External Bug Count, Ticket Reopen 16, Self Learning 14. 2026 Execution 30, Quality 50, Learning & Development 20.
 
-Santosh weights: 2025 Project Delivery 50, Process Adherance 15, External Bug Count, Ticket Reopen 20, Self Learning 15. 2026 Execution 29, Quality 50, L&D 20, Growth 1.
+Santosh weights: 2025 Project Delivery 50, Process Adherance 15, External Bug Count, Ticket Reopen 20, Self Learning 15. 2026 Execution 30, Quality 50, L&D 20. The same quarter weights as Utkarsh: 7.5, 12.5, and 5.
 
-Krishna 0.2 stores the full annual numbers on KPI_2025 and KPI_2026 and shows each quarter as 100. The scorecard awards 58/12/16/14 in 2025 and 30/50/20 in 2026. The OKR checklist for 2026 uses line weights 5, 5, and 5, and the checklist summary totals 20 per 2026 quarter and 240 overall. Both presentations are kept. The dashboard KPI points follow the scorecard weight. Checklist completion follows the checklist lines. They are not forced to match.
+Krishna 0.3 uses the scoped quarter weight. 2025 quarter weights are 14.5 / 3 / 4 / 3.5. 2026 quarter weights are 7.5 / 12.5 / 5, and the two Quality checklist lines are 6.25 each. Each in-scope quarter is 25 and the checklist grand total is 100. Q3-2025 stays Yes because of the training / KT and PM Yes. The v0.2 workbook is unchanged and still shows each quarter as 100, with a checklist grand total of 240.
 
-Santosh Execution is No for Q1-2026 (4 closed, target 9) and Q2-2026 (6 closed, target 12). Growth is No. Recorded 2026 achievement is 35, total 85. Utkarsh recorded total is 100. Krishna scorecard quarters are 100, while the checklist grand total is 240.
+Santosh Execution is No for Q1-2026 (4 closed, target 9) and Q2-2026 (6 closed, target 12). Recorded 2026 achievement is 35, total 85. Utkarsh recorded total is 100. Krishna 0.3 checklist grand total is 100. The unchanged Krishna v0.2 checklist grand total is 240.
 
 Source spelling Process Adherance is kept on export. The screen can say Process Adherence beside it.
 
@@ -61,9 +63,9 @@ Utkarsh formulas, cached values confirmed:
 
 Santosh formulas: `=50/4*2`, `=15/4*2`, `=20/4*2`, `=15/4*2`, and for 2026 `=29/4*2`, `=50/4*2`, `=20/4*2`, `=1/4*2`. Total formula `=KPI_2025!B8+B8` caches 85.
 
-Krishna weight cells are literals. There is a Quarterly Score row (100) instead of the 2-quarter sum block. Q3 and Q4 2026 target text is present and actuals are blank. Those quarters stay unassessed. They are not zeroes.
+Krishna 0.3 weight cells are formulas, `annual/4*2`, with a 2-quarter sum of 50. Q3 and Q4 2026 target text is present and actuals are blank. Those quarters stay unassessed. They are not zeroes. In v0.2 the weight cells are still literals and the quarterly score row is 100.
 
-OKR Link cells are internal hyperlinks such as `Utkarsh_OKR_Checklist!A2`. Several future-quarter links point at `A1` and are placeholders.
+OKR Link cells are internal hyperlinks such as `Utkarsh_OKR_Checklist!A2`. Each link opens the first checklist line for that KPI and quarter. Quarters that have no checklist line point at `A1`.
 
 ## Checklist fields
 
@@ -123,10 +125,12 @@ Krishna uses the Utkarsh-style header and full annual weights. Q3-2025 Project D
 ## Known source inconsistencies
 
 - Utkarsh Ticket_Velocity footer SQL lines (917 all master, 882 appraisal) do not match the scorecard footer (973). Ticket line items are the source. Summaries are summed from those lines on export.
-- Krishna 2026 checklist weights and scorecard weights describe different totals. Both are stored.
-- Santosh SLA Yes values do not follow the 45-day sentence in the same sheet.
+- Krishna v0.2 still has checklist weights and scorecard weights that do not match. v0.3 brings both to the quarter weight. The v0.2 file is kept.
+- Santosh SLA Yes values do not follow the 45-day sentence in the same sheet. The recorded Yes is unchanged.
 - Defect comments and defect-theme counts are not always the same claim.
-- Some OKR links for quarters that have no checklist lines point at cell A1.
+- OKR links for quarters that have no checklist lines point at cell A1.
+- Santosh has seven closed tickets whose closure date is before the assign date. The dates were not guessed.
+- Krishna ticket 35062 cycle days are 42. Its 45 code lines are in the Q1-2026 total.
 - No formula errors were cached as Excel error values on the KPI formulas. The cached results matched the arithmetic above.
 
 ## Application mapping
@@ -149,7 +153,7 @@ Empty cells are stored as empty, not as zero and not dropped. Unknown header col
 
 ## Ambiguities left configurable
 
-1. Whether a manager wants Krishna-style full-year points or the v0.3 quarter weight. Each reportee keeps the model found in that file. New reportees default to the v0.3 scoped rule.
+1. Whether a manager wants Krishna-style full-year points or the v0.3 quarter weight. Import v0.2 for the full-year score and 0.3 for the scoped quarter weight. New reportees default to the v0.3 scoped rule.
 2. Whether defect comments or the curated Defect-like? count is the external-bug number. The threshold uses the curated count. The comment is unchanged.
 3. Whether SLA achievement should be recalculated when the average exceeds 45. The import keeps the recorded status until someone overrides it with a reason.
 4. Quarter status for the imported appraisal window is Under Review, not Finalized. Finalizing is an explicit action.

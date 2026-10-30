@@ -10,7 +10,7 @@ A workbook-only link such as `Q3-2025_Ticket_Summary!A1` opens inside Excel. In 
 
 ## Scoring
 
-Krishna's scorecard and Krishna's 2026 checklist do not total the same way. The app shows both and does not pick a silent winner. See the workbook analysis.
+Krishna 0.3 uses the scoped quarter weight, so the scorecard and the checklist total the same way. The unchanged v0.2 workbook still shows a quarter as 100 and a checklist grand total of 240. Import whichever file matches the score rule you want. See the workbook analysis.
 
 Santosh SLA rows can stay Yes while the 45-day rule calculates Not achieved. The recorded status remains until a manager saves an override with a reason.
 

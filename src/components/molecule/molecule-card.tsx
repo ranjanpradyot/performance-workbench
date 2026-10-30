@@ -42,9 +42,11 @@ export interface MoleculeCardProps {
   bar?: boolean;
   headerEnd?: ReactNode;
   ariaLabel?: string;
+  /** Shorter metric tile. Used by the dashboard so five tiles fit on one row. */
+  compact?: boolean;
 }
 
-export function MoleculeCard({ accent = "#004FCC", icon, title, value, children, action, onClick, wash = false, bar = false, headerEnd, ariaLabel }: MoleculeCardProps) {
+export function MoleculeCard({ accent = "#004FCC", icon, title, value, children, action, onClick, wash = false, bar = false, headerEnd, ariaLabel, compact = false }: MoleculeCardProps) {
   const theme = useTheme();
   const mode = theme.palette.mode;
   const tokens = mode === "dark" ? DARK : LIGHT;
@@ -53,19 +55,19 @@ export function MoleculeCard({ accent = "#004FCC", icon, title, value, children,
   const content = (
     <>
       {(icon || headerEnd) && (
-        <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1, mb: 2 }}>
+        <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 1, mb: compact ? 1 : 2 }}>
           {icon ? (
-            <Box sx={{ width: 48, height: 48, borderRadius: "12px", display: "grid", placeItems: "center", bgcolor: tokens.tile, border: `1px solid ${tokens.border}`, color: tone, "& svg": { fontSize: 24 } }}>{icon}</Box>
+            <Box sx={{ width: compact ? 32 : 48, height: compact ? 32 : 48, borderRadius: compact ? "8px" : "12px", display: "grid", placeItems: "center", bgcolor: tokens.tile, border: `1px solid ${tokens.border}`, color: tone, "& svg": { fontSize: compact ? 18 : 24 } }}>{icon}</Box>
           ) : <span />}
           {headerEnd}
         </Box>
       )}
-      <Typography component="h3" sx={{ m: 0, fontFamily: "var(--font-jakarta), sans-serif", fontWeight: 700, fontSize: 18, lineHeight: 1.3, color: tokens.title }}>{title}</Typography>
+      <Typography component="h3" sx={{ m: 0, fontFamily: "var(--font-jakarta), sans-serif", fontWeight: 700, fontSize: compact ? 13 : 18, lineHeight: 1.25, color: tokens.title }}>{title}</Typography>
       {bar && <Box sx={{ width: 40, height: 4, borderRadius: "2px", bgcolor: tone, mt: 1.25 }} />}
-      {value != null && <Typography sx={{ mt: 1, fontFamily: "var(--font-jakarta), sans-serif", fontWeight: 700, fontSize: 28, lineHeight: 1.2, color: tokens.title }}>{value}</Typography>}
-      {children != null && <Box sx={{ mt: 1, fontSize: 14, lineHeight: 1.55, color: tokens.body }}>{children}</Box>}
+      {value != null && <Typography sx={{ mt: compact ? 0.5 : 1, fontFamily: "var(--font-jakarta), sans-serif", fontWeight: 700, fontSize: compact ? 20 : 28, lineHeight: 1.2, color: tokens.title }}>{value}</Typography>}
+      {children != null && <Box sx={{ mt: compact ? 0.5 : 1, fontSize: compact ? 12 : 14, lineHeight: compact ? 1.35 : 1.55, color: tokens.body }}>{children}</Box>}
       {action && (
-        <Box component="span" sx={{ mt: 2.5, display: "inline-flex", alignItems: "center", gap: 0.5, fontSize: 14, fontWeight: 500, color: mode === "dark" ? "#6E9BFF" : "#004FCC" }}>
+        <Box component="span" sx={{ mt: compact ? 1 : 2.5, display: "inline-flex", alignItems: "center", gap: 0.5, fontSize: compact ? 12 : 14, fontWeight: 500, color: mode === "dark" ? "#6E9BFF" : "#004FCC" }}>
           {action}
           <ChevronRightIcon sx={{ fontSize: 18 }} />
         </Box>
@@ -79,7 +81,7 @@ export function MoleculeCard({ accent = "#004FCC", icon, title, value, children,
     textAlign: "left",
     width: "100%",
     height: "100%",
-    p: 2.5,
+    p: compact ? 1.25 : 2.5,
     borderRadius: "14px",
     border: `1px solid ${tokens.border}`,
     background,

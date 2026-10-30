@@ -1,5 +1,5 @@
-import { quarterBounds, slug } from "@/domain/status";
-import type { KpiAssessment, KpiDefinition, LearningEvidence, OkrChecklistEntry, QuarterStatus, Reportee, Ticket, WorkbenchDataset } from "@/domain/types";
+import { quarterBounds, quarterLabel, slug } from "@/domain/status";
+import type { AchievementStatus, KpiAssessment, KpiDefinition, LearningEvidence, OkrChecklistEntry, Quarter, QuarterStatus, Reportee, ScoreModel, Ticket, WorkbenchDataset } from "@/domain/types";
 import { touchQuarter, upsertYear } from "@/infrastructure/excel/dataset";
 import { withAudit } from "@/infrastructure/indexeddb/repository";
 
@@ -157,11 +157,93 @@ export function setQuarterStatus(dataset: WorkbenchDataset, id: string, status: 
   );
 }
 
-export function upsertChecklist(dataset: WorkbenchDataset, entry: OkrChecklistEntry): WorkbenchDataset {
+/** Annual KPI pointers, and the pointers on one OKR quarter, cannot total more than this. */
+export const POINTER_CAP = 100;
+
+export interface KpiInput {
+  name: string;
+  category: string;
+  pointers: number;
+  description?: string;
+  startQuarterId: string;
+}
+
+export function annualPointersUsed(dataset: WorkbenchDataset, reporteeId: string, year: number, excludeDefinitionId?: string): number {
+  return roundPointers(dataset.kpiDefinitions
+    .filter((item) => item.reporteeId === reporteeId && item.year === year && item.active && item.id !== excludeDefinitionId)
+    .reduce((sum, item) => sum + (item.annualWeight ?? 0), 0));
+}
+
+export function quarterOkrPointersUsed(dataset: WorkbenchDataset, reporteeId: string, quarterId: string, excludeEntryId?: string): number {
+  return roundPointers(dataset.okrChecklistEntries
+    .filter((item) => item.reporteeId === reporteeId && item.quarterId === quarterId && item.id !== excludeEntryId && item.okrMet !== "not_applicable")
+    .reduce((sum, item) => sum + (item.weightage ?? 0), 0));
+}
+
+/** First quarter in the KPI year that is still in scope. Earlier rows are not applicable. */
+export function kpiStartQuarterId(dataset: WorkbenchDataset, definitionId: string): string {
+  const definition = dataset.kpiDefinitions.find((item) => item.id === definitionId);
+  if (!definition) return "";
+  const mine = dataset.kpiAssessments.filter((item) => item.kpiDefinitionId === definitionId);
+  const inScope = dataset.quarters
+    .filter((quarter) => quarter.year === definition.year && mine.some((item) => item.quarterId === quarter.id && item.status !== "not_applicable"))
+    .sort(byQuarter);
+  if (inScope[0]) return inScope[0].id;
+  const any = dataset.quarters.filter((quarter) => quarter.year === definition.year && mine.some((item) => item.quarterId === quarter.id)).sort(byQuarter);
+  return any[0]?.id ?? "";
+}
+
+export function addKpi(dataset: WorkbenchDataset, reporteeId: string, input: KpiInput): WorkbenchDataset {
+  const next = structuredClone(dataset);
+  const definition = buildDefinition(next, reporteeId, input);
+  next.kpiDefinitions.push(definition);
+  writeAssessments(next, definition, input.startQuarterId, true);
+  return withAudit(next, { entityType: "kpi", recordId: definition.id, operation: "create", after: definition });
+}
+
+export function updateKpi(dataset: WorkbenchDataset, definitionId: string, input: KpiInput): WorkbenchDataset {
+  const current = dataset.kpiDefinitions.find((item) => item.id === definitionId);
+  if (!current) throw new Error("That KPI no longer exists.");
+  const next = structuredClone(dataset);
+  const definition = buildDefinition(next, current.reporteeId, input, current);
+  next.kpiDefinitions = next.kpiDefinitions.map((item) => (item.id === definitionId ? definition : item));
+  writeAssessments(next, definition, input.startQuarterId, false);
+  return withAudit(next, { entityType: "kpi", recordId: definitionId, operation: "update", before: current, after: definition });
+}
+
+export function removeKpi(dataset: WorkbenchDataset, definitionId: string): WorkbenchDataset {
+  const current = dataset.kpiDefinitions.find((item) => item.id === definitionId);
+  if (!current) return dataset;
+  const removed = dataset.kpiAssessments.filter((item) => item.kpiDefinitionId === definitionId);
+  return withAudit(
+    {
+      ...dataset,
+      kpiDefinitions: dataset.kpiDefinitions.filter((item) => item.id !== definitionId),
+      kpiAssessments: dataset.kpiAssessments.filter((item) => item.kpiDefinitionId !== definitionId),
+    },
+    { entityType: "kpi", recordId: definitionId, operation: "delete", before: { definition: current, assessments: removed }, reason: "Deleted from the KPI list after confirmation. OKR checklist lines are kept." },
+  );
+}
+
+export function upsertChecklist(dataset: WorkbenchDataset, entry: OkrChecklistEntry, options?: { markEarlierQuartersNotApplicable?: boolean }): WorkbenchDataset {
   if (!entry.okrs.trim()) throw new Error("The OKR text is required.");
-  if (entry.weightage != null && Number.isNaN(entry.weightage)) throw new Error("Weightage must be a number.");
+  assertPointerValue(entry.weightage, "Pointers");
+  if (entry.okrMet !== "not_applicable") {
+    const total = quarterOkrPointersUsed(dataset, entry.reporteeId, entry.quarterId, entry.id) + (entry.weightage ?? 0);
+    assertPointerTotal(total, `OKR pointers for ${quarterLabel(entry.quarterId)}`);
+  }
   const exists = dataset.okrChecklistEntries.some((item) => item.id === entry.id);
-  const rows = exists ? dataset.okrChecklistEntries.map((item) => (item.id === entry.id ? entry : item)) : [...dataset.okrChecklistEntries, entry];
+  let rows = exists ? dataset.okrChecklistEntries.map((item) => (item.id === entry.id ? entry : item)) : [...dataset.okrChecklistEntries, entry];
+  if (options?.markEarlierQuartersNotApplicable && !exists) {
+    const quarter = dataset.quarters.find((item) => item.id === entry.quarterId);
+    const earlier = quarter ? dataset.quarters.filter((item) => item.year === quarter.year && item.quarterNumber < quarter.quarterNumber) : [];
+    const timestamp = now();
+    for (const past of earlier) {
+      const already = rows.some((item) => item.reporteeId === entry.reporteeId && item.quarterId === past.id && item.okrs.trim() === entry.okrs.trim() && item.kpiAffected === entry.kpiAffected);
+      if (already) continue;
+      rows = [...rows, { ...entry, id: `okr_${entry.reporteeId}_${past.id}_${crypto.randomUUID().slice(0, 8)}`, quarterId: past.id, okrMet: "not_applicable", weightage: null, updatedAt: timestamp }];
+    }
+  }
   return withAudit({ ...dataset, okrChecklistEntries: rows }, { entityType: "okr", recordId: entry.id, operation: exists ? "update" : "create", after: entry });
 }
 
@@ -213,6 +295,119 @@ export function overrideAssessment(dataset: WorkbenchDataset, id: string, status
     { ...dataset, kpiAssessments: dataset.kpiAssessments.map((item) => (item.id === id ? next : item)) },
     { entityType: "kpiAssessment", recordId: id, operation: "override", before: current, after: next, reason },
   );
+}
+
+function roundPointers(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+function assertPointerValue(value: number | null, label: string): void {
+  if (value == null) return;
+  if (!Number.isFinite(value) || value < 0) throw new Error(`${label} must be zero or greater. Leave it blank when it is unknown. Blank is not stored as zero.`);
+  if (value > POINTER_CAP) throw new Error(`${label} cannot exceed ${POINTER_CAP}.`);
+}
+
+function assertPointerTotal(total: number, scope: string): void {
+  if (total > POINTER_CAP + 0.001) {
+    const shown = Number.isInteger(roundPointers(total)) ? String(roundPointers(total)) : roundPointers(total).toFixed(1);
+    throw new Error(`${scope} would total ${shown} pointers. The total cannot exceed ${POINTER_CAP}.`);
+  }
+}
+
+function byQuarter(left: Quarter, right: Quarter): number {
+  return left.year - right.year || left.quarterNumber - right.quarterNumber;
+}
+
+function quarterPointer(annual: number, model: ScoreModel | undefined): number {
+  return model === "full_annual_each_quarter" ? roundPointers(annual) : roundPointers(annual / 4);
+}
+
+function buildDefinition(dataset: WorkbenchDataset, reporteeId: string, input: KpiInput, current?: KpiDefinition): KpiDefinition {
+  if (!dataset.reportees.some((item) => item.id === reporteeId)) throw new Error("That reportee no longer exists.");
+  const name = input.name.trim();
+  if (!name) throw new Error("KPI name is required.");
+  const category = input.category.trim();
+  if (!category) throw new Error("Category is required.");
+  if (!Number.isFinite(input.pointers)) throw new Error("Pointers are required.");
+  assertPointerValue(input.pointers, "Pointers");
+  const start = dataset.quarters.find((item) => item.id === input.startQuarterId);
+  if (!start) throw new Error("Choose the quarter this KPI starts in.");
+  const duplicate = dataset.kpiDefinitions.find((item) => item.reporteeId === reporteeId && item.year === start.year && item.active && item.id !== current?.id && item.sourceLabel.trim().toLowerCase() === name.toLowerCase());
+  if (duplicate) throw new Error(`${name} already exists for ${start.year}. Edit that KPI instead of adding a duplicate.`);
+  const total = annualPointersUsed(dataset, reporteeId, start.year, current?.id) + input.pointers;
+  assertPointerTotal(total, `KPI pointers for ${start.year}`);
+  const rules = dataset.assessmentRules.find((item) => item.reporteeId === reporteeId);
+  const pointers = roundPointers(input.pointers);
+  const scopedWeight = current && current.annualWeight === pointers
+    ? current.scopedWeight
+    : rules?.scoreModel === "full_annual_each_quarter"
+      ? pointers
+      : roundPointers(pointers / 2);
+  return {
+    id: current?.id ?? `kpi_${reporteeId}_${start.year}_${slug(name) || "kpi"}_${crypto.randomUUID().slice(0, 6)}`,
+    reporteeId,
+    year: start.year,
+    name,
+    sourceLabel: name,
+    category,
+    description: input.description?.trim() || undefined,
+    annualWeight: pointers,
+    scopedWeight,
+    weightFormula: current?.weightFormula,
+    assessmentMethod: current?.assessmentMethod ?? "Manager Yes/No. Yes awards the quarter pointers. No awards 0. Earlier quarters are not applicable and are not scored as zero.",
+    active: true,
+    displayOrder: current?.displayOrder ?? nextDisplayOrder(dataset, reporteeId, start.year),
+    title: current?.title,
+    extension: current?.extension,
+  };
+}
+
+function isBefore(quarter: Quarter, start: Quarter): boolean {
+  return quarter.year < start.year || (quarter.year === start.year && quarter.quarterNumber < start.quarterNumber);
+}
+
+function nextDisplayOrder(dataset: WorkbenchDataset, reporteeId: string, year: number): number {
+  const orders = dataset.kpiDefinitions.filter((item) => item.reporteeId === reporteeId && item.year === year).map((item) => item.displayOrder);
+  return orders.length ? Math.max(...orders) + 1 : 1;
+}
+
+function writeAssessments(dataset: WorkbenchDataset, definition: KpiDefinition, startQuarterId: string, createMissingPast: boolean): void {
+  const start = dataset.quarters.find((item) => item.id === startQuarterId);
+  if (!start) return;
+  const rules = dataset.assessmentRules.find((item) => item.reporteeId === definition.reporteeId);
+  const weight = quarterPointer(definition.annualWeight ?? 0, rules?.scoreModel);
+  const timestamp = now();
+  for (const quarter of dataset.quarters.filter((item) => item.year === start.year).sort(byQuarter)) {
+    const existing = dataset.kpiAssessments.find((item) => item.kpiDefinitionId === definition.id && item.quarterId === quarter.id);
+    const before = isBefore(quarter, start);
+    if (before && !existing && !createMissingPast) continue;
+    const decided = existing != null && existing.status !== "pending" && existing.status !== "not_applicable";
+    let nextStatus: AchievementStatus = "pending";
+    if (before) nextStatus = decided ? existing.status : "not_applicable";
+    else if (existing && existing.status !== "not_applicable") nextStatus = existing.status;
+    const nextWeight = nextStatus === "not_applicable" ? null : weight;
+    const assessment: KpiAssessment = {
+      id: existing?.id ?? `kpa_${definition.reporteeId}_${quarter.id}_${definition.id}`,
+      reporteeId: definition.reporteeId,
+      quarterId: quarter.id,
+      kpiDefinitionId: definition.id,
+      target: existing?.target,
+      actual: existing?.actual,
+      status: nextStatus,
+      recordedStatus: nextStatus === "not_applicable" ? "not_applicable" : existing?.recordedStatus && existing.recordedStatus !== "not_applicable" ? existing.recordedStatus : nextStatus,
+      weightUsed: nextWeight,
+      notes: existing?.notes,
+      evidenceRefs: existing?.evidenceRefs ?? [],
+      assessedAt: existing?.assessedAt,
+      manualOverride: existing?.manualOverride ?? false,
+      overrideReason: existing?.overrideReason,
+      calculatedStatus: existing?.calculatedStatus,
+      inheritedTemplate: existing?.inheritedTemplate ?? true,
+      updatedAt: timestamp,
+    };
+    if (existing) dataset.kpiAssessments = dataset.kpiAssessments.map((item) => (item.id === existing.id ? assessment : item));
+    else dataset.kpiAssessments.push(assessment);
+  }
 }
 
 function defaultRules(reporteeId: string, timestamp: string) {

@@ -1,16 +1,17 @@
 "use client";
 
 import { DataGrid, useGridApiRef, type GridColDef } from "@mui/x-data-grid";
-import { Alert, Box, Button, Chip, Stack, Tab, Tabs, Typography } from "@mui/material";
+import { Alert, Box, Button, Chip, Link as MuiLink, Stack, Tab, Tabs, Typography } from "@mui/material";
+import NextLink from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { StatusChip, StatusIcon } from "@/components/feedback/status-chip";
 import { PageFilters, SelectField, STATUS_OPTIONS } from "@/components/layout/filter-bar";
-import { ChecklistEditor, LearningEditor, OverrideEditor, TicketEditor } from "@/components/reportees/editors";
+import { LearningEditor, OverrideEditor, TicketEditor } from "@/components/reportees/editors";
 import { QuarterScoreCard, StatusLegend } from "@/components/scores/quarter-score";
 import { quarterScores } from "@/domain/dashboard";
 import { linkLabel, okrTitle, parseWorkbookLink, sheetLabel, type WorkbookLink } from "@/domain/sheet-links";
-import type { AchievementStatus, KpiAssessment, LearningEvidence, OkrChecklistEntry, Ticket } from "@/domain/types";
+import type { AchievementStatus, KpiAssessment, LearningEvidence, Ticket } from "@/domain/types";
 import { useWorkbench } from "@/state/workbench-context";
 import { reporteeForeground } from "@/theme/reportee-colors";
 
@@ -32,8 +33,6 @@ export default function ReporteeWorkspacePage() {
   const [section, setSection] = useState<(typeof SECTIONS)[number][0]>("overview");
   const [quarterFilter, setQuarterFilter] = useState(filters.quarterId);
   const [statusFilter, setStatusFilter] = useState("all");
-  const [checklistTarget, setChecklistTarget] = useState<OkrChecklistEntry | null>(null);
-  const [checklistOpen, setChecklistOpen] = useState(false);
   const [ticketTarget, setTicketTarget] = useState<Ticket | null>(null);
   const [ticketOpen, setTicketOpen] = useState(false);
   const [learningTarget, setLearningTarget] = useState<LearningEvidence | null>(null);
@@ -137,7 +136,7 @@ export default function ReporteeWorkspacePage() {
       )}
       {section === "kpis" && (
         <Stack spacing={1}>
-          <Typography variant="body2" color="text.secondary">Select a KPI or its linked OKR to open that OKR. Override has its own column. The calculated status is kept.</Typography>
+          <Typography variant="body2" color="text.secondary">This is the quarter view. Add, edit, and delete KPIs in <MuiLink component={NextLink} href="/settings">Settings</MuiLink>. Override still changes one quarter without deleting the KPI.</Typography>
           <Grid
             rows={rows.kpis.map((row) => ({ ...row, quarter: labelOf(dataset, row.quarterId), kpi: dataset.kpiDefinitions.find((item) => item.id === row.kpiDefinitionId)?.sourceLabel, okrLink: row.evidenceRefs[0] ?? "", okrLinkLabel: labelFor(row.evidenceRefs[0]), statusValue: row.status, overridden: row.manualOverride }))}
             columns={kpiColumns}
@@ -156,18 +155,13 @@ export default function ReporteeWorkspacePage() {
       )}
       {section === "checklist" && (
         <Stack spacing={1}>
-          <Button sx={{ alignSelf: "flex-start" }} variant="contained" onClick={() => { setChecklistTarget(null); setChecklistOpen(true); }}>Add OKR</Button>
+          <Typography variant="body2" color="text.secondary">Add and edit OKR lines in <MuiLink component={NextLink} href="/settings">Settings</MuiLink>. Evidence links still open the related sheet.</Typography>
           <Grid
             rows={rows.checklist.map((row) => ({ ...row, quarter: labelOf(dataset, row.quarterId), statusValue: row.okrMet, artifactsLabel: labelFor(row.artifacts), otherLinksLabel: labelFor(row.otherLinks) }))}
             columns={checklistColumns}
             highlightId={focusChecklistId}
-            onCellClick={(id, field, value) => {
-              if ((field === "artifacts" || field === "otherLinks") && typeof value === "string" && value) {
-                followWorkbookLink(value);
-                return;
-              }
-              setChecklistTarget(rows.checklist.find((item) => item.id === id) ?? null);
-              setChecklistOpen(true);
+            onCellClick={(_id, field, value) => {
+              if ((field === "artifacts" || field === "otherLinks") && typeof value === "string" && value) followWorkbookLink(value);
             }}
           />
         </Stack>
@@ -209,7 +203,6 @@ export default function ReporteeWorkspacePage() {
           {rows.rules?.notes.map((note) => <Alert key={note} severity="warning">{note}</Alert>)}
         </Stack>
       )}
-      <ChecklistEditor personId={person.id} personName={person.fullName} entry={checklistTarget} open={checklistOpen} onClose={() => setChecklistOpen(false)} />
       <TicketEditor personId={person.id} entry={ticketTarget} open={ticketOpen} onClose={() => setTicketOpen(false)} />
       <LearningEditor personId={person.id} entry={learningTarget} open={learningOpen} onClose={() => setLearningOpen(false)} />
       <OverrideEditor assessment={overrideTarget} open={Boolean(overrideTarget)} onClose={() => setOverrideTarget(null)} />
@@ -274,7 +267,7 @@ const kpiColumns: GridColDef[] = [
   { field: "kpi", headerName: "KPI", width: 160, cellClassName: (params) => (params.row.okrLink ? "link-cell" : "") },
   linkCell("okrLink", "Linked OKR", { width: 190 }),
   statusColumn("Status", 150),
-  { field: "weightUsed", headerName: "Weight", width: 80 },
+  { field: "weightUsed", headerName: "Pointers", width: 90 },
   { field: "target", headerName: "Target", flex: 1, minWidth: 180 },
   { field: "actual", headerName: "Actual", flex: 1, minWidth: 160 },
   { field: "override", headerName: "Override", width: 100, sortable: false, valueGetter: () => "Override", cellClassName: "link-cell" },
@@ -284,7 +277,7 @@ const checklistColumns: GridColDef[] = [
   { field: "quarter", headerName: "Quarter", width: 110 },
   { field: "kpiAffected", headerName: "KPI", width: 160 },
   statusColumn("Met"),
-  { field: "weightage", headerName: "Weight", width: 90 },
+  { field: "weightage", headerName: "Pointers", width: 90 },
   { field: "okrs", headerName: "OKR", flex: 1.2 },
   linkCell("artifacts", "Evidence", { flex: 1 }),
   linkCell("otherLinks", "More evidence", { flex: 1 }),

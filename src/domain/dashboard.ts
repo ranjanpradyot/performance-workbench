@@ -157,14 +157,16 @@ export interface QuarterScore {
   label: string;
   achieved: number | null;
   possible: number | null;
-  /** Worst decided outcome in the quarter. A pending KPI keeps the quarter open rather than counting as a miss. */
+  /** Worst decided outcome. Unassessed KPIs stay out of this icon and out of the fraction. */
   status: AchievementStatus;
-  kpis: Array<{ id: string; name: string; status: AchievementStatus; points: number | null; weight: number | null; overridden: boolean; linked: boolean }>;
+  unassessed: number;
+  kpis: Array<{ id: string; name: string; status: AchievementStatus; points: number | null; weight: number | null; actual?: string; overridden: boolean; linked: boolean }>;
 }
 
 export function quarterStatus(statuses: AchievementStatus[]): AchievementStatus {
   if (statuses.some((status) => status === "not_achieved")) return "not_achieved";
-  if (statuses.some((status) => status === "pending" || status === "insufficient_evidence")) return "pending";
+  const decided = statuses.some((status) => status === "achieved" || status === "overridden");
+  if (!decided && statuses.some((status) => status === "pending" || status === "insufficient_evidence")) return "pending";
   if (statuses.length > 0 && statuses.every((status) => status === "not_applicable")) return "not_applicable";
   return "achieved";
 }
@@ -177,12 +179,15 @@ export function quarterScores(dataset: WorkbenchDataset, reporteeId: string, qua
     .filter((quarter) => (!quarterIds || quarterIds.includes(quarter.id)) && rows.some((row) => row.quarterId === quarter.id))
     .map((quarter) => {
       const mine = rows.filter((row) => row.quarterId === quarter.id);
-      const score = rollupAssessments(mine);
       const definitionOf = (row: KpiAssessment) => dataset.kpiDefinitions.find((item) => item.id === row.kpiDefinitionId);
       const kpis = [...mine]
         .sort((a, b) => (definitionOf(a)?.displayOrder ?? 0) - (definitionOf(b)?.displayOrder ?? 0))
-        .map((row) => ({ id: row.id, name: definitionOf(row)?.sourceLabel ?? row.kpiDefinitionId, status: row.status, points: kpiPoints(row.status, row.weightUsed), weight: row.weightUsed, overridden: row.manualOverride, linked: row.evidenceRefs.length > 0 }));
-      return { quarterId: quarter.id, label: quarter.label, achieved: score.achievedWeight, possible: score.possibleWeight, status: quarterStatus(mine.map((row) => row.status)), kpis };
+        .map((row) => ({ id: row.id, name: definitionOf(row)?.sourceLabel ?? row.kpiDefinitionId, status: row.status, points: kpiPoints(row.status, row.weightUsed), weight: row.weightUsed, actual: row.actual, overridden: row.manualOverride, linked: row.evidenceRefs.length > 0 }));
+      const decided = kpis.filter((kpi) => kpi.points != null && kpi.weight != null);
+      const unassessed = kpis.filter((kpi) => kpi.points == null && kpi.weight != null && kpi.status !== "not_applicable").reduce((sum, kpi) => sum + (kpi.weight ?? 0), 0);
+      const achieved = decided.length ? decided.reduce((sum, kpi) => sum + (kpi.points ?? 0), 0) : null;
+      const possible = decided.length ? decided.reduce((sum, kpi) => sum + (kpi.weight ?? 0), 0) : kpis.some((kpi) => kpi.weight != null) ? kpis.reduce((sum, kpi) => sum + (kpi.weight ?? 0), 0) : null;
+      return { quarterId: quarter.id, label: quarter.label, achieved, possible, unassessed, status: quarterStatus(mine.map((row) => row.status)), kpis };
     });
 }
 

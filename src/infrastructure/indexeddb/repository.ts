@@ -74,14 +74,27 @@ export function withAudit(dataset: WorkbenchDataset, entry: Omit<AuditEntry, "id
   return { ...dataset, auditHistory: [audit, ...dataset.auditHistory].slice(0, 500) };
 }
 
+function sameSeedSources(left: string[] | undefined, right: string[] | undefined): boolean {
+  const a = [...(left ?? [])].sort();
+  const b = [...(right ?? [])].sort();
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
+/**
+ * Loads IndexedDB when present. Replace that copy when the bundled seed names
+ * a different workbook list, or when the bundled revision is newer, so a
+ * rebuilt seed shows up on reload.
+ */
 export async function seedIfEmpty(repository: DatasetRepository, loadSeed: () => Promise<WorkbenchDataset>): Promise<WorkbenchDataset> {
+  const seeded = await loadSeed();
   const existing = await repository.load();
   if (existing) {
     const checked = migrateDataset(existing);
     if (!checked.ok) throw new Error(checked.issues.map((issue) => `${issue.path}: ${issue.message}`).join(" "));
-    return checked.dataset;
+    const sameFiles = sameSeedSources(checked.dataset.application.seededFrom, seeded.application.seededFrom);
+    const storedRevision = checked.dataset.application.revision;
+    if (sameFiles && storedRevision >= seeded.application.revision) return checked.dataset;
   }
-  const seeded = await loadSeed();
   await repository.replace(seeded);
   return seeded;
 }

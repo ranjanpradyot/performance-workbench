@@ -381,7 +381,10 @@ function applyCodeChangeLinks(matrices: Map<string, ParsedCell[][]>, tickets: Ti
 function applyDefectFlags(matrices: Map<string, ParsedCell[][]>, tickets: Ticket[], reporteeId: string, warnings: string[]): void {
   const rows = matrices.get("Customer_Defect_Themes");
   if (!rows) return;
-  const headerAt = rows.findIndex((row) => row.some((cell) => (cell.text ?? "").toLowerCase().startsWith("defect-like")));
+  const headerAt = rows.findIndex((row) => {
+    const labels = row.map((cell) => (cell.text ?? "").toLowerCase());
+    return labels.some((label) => label === "ticket no.") && labels.some((label) => label.startsWith("defect-like"));
+  });
   if (headerAt < 0) return;
   const header = rows[headerAt];
   const ticketCol = headerIndex(header, ["Ticket No."]);

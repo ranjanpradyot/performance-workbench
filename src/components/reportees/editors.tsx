@@ -6,8 +6,8 @@ import { overrideAssessment, removeChecklist, removeTicket, upsertChecklist, ups
 import type { AchievementStatus, KpiAssessment, LearningEvidence, OkrChecklistEntry, Ticket, WorkbenchDataset } from "@/domain/types";
 import { touchQuarter } from "@/infrastructure/excel/dataset";
 import { useWorkbench } from "@/state/workbench-context";
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, MenuItem, Stack, TextField } from "@mui/material";
-import { useEffect } from "react";
+import { Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, MenuItem, Stack, TextField } from "@mui/material";
+import { useEffect, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 
 const STATUSES: Array<[AchievementStatus, string]> = [
@@ -38,6 +38,7 @@ function withQuarter(dataset: WorkbenchDataset, quarterId: string | undefined): 
 export function ChecklistEditor({ personId, personName, entry, open, onClose }: { personId: string; personName: string; entry: OkrChecklistEntry | null; open: boolean; onClose: () => void }) {
   const { dataset, commit, notify } = useWorkbench();
   const form = useForm({ defaultValues: checklistDefaults(entry) });
+  const [markEarlier, setMarkEarlier] = useState(true);
   useEffect(() => { if (open) form.reset(checklistDefaults(entry)); }, [open, entry, form]);
   if (!dataset) return null;
   return (
@@ -65,7 +66,7 @@ export function ChecklistEditor({ personId, personName, entry, open, onClose }: 
               updatedAt: new Date().toISOString(),
             };
             const base = withQuarter(dataset, record.quarterId) ?? dataset;
-            await commit(upsertChecklist(base, record), entry ? "Edit OKR" : "Add OKR");
+            await commit(upsertChecklist(base, record, { markEarlierQuartersNotApplicable: !entry && markEarlier }), entry ? "Edit OKR" : "Add OKR");
             onClose();
           } catch (cause) {
             notify(cause instanceof Error ? cause.message : "The OKR line could not be saved.", "error");
@@ -74,7 +75,8 @@ export function ChecklistEditor({ personId, personName, entry, open, onClose }: 
           <Controller name="quarterId" control={form.control} render={({ field }) => <TextField select label="Quarter" value={field.value} onChange={field.onChange}>{dataset.quarters.map((quarter) => <MenuItem key={quarter.id} value={quarter.id}>{quarter.label}</MenuItem>)}</TextField>} />
           <TextField label="KPI affected" {...form.register("kpiAffected")} />
           <Controller name="okrMet" control={form.control} render={({ field }) => <TextField select label="OKR met?" value={field.value} onChange={field.onChange}>{STATUSES.map(([value, label]) => <MenuItem key={value} value={value}>{label}</MenuItem>)}</TextField>} />
-          <TextField label="Weightage" helperText="Leave blank when this line has no weight. Blank is not zero." {...form.register("weightage")} />
+          <TextField label="Pointers" helperText="Leave blank when this line has no pointers. Blank is not zero. A quarter cannot total more than 100. Not applicable lines are not counted." {...form.register("weightage")} />
+          {!entry && <FormControlLabel control={<Checkbox checked={markEarlier} onChange={(event) => setMarkEarlier(event.target.checked)} />} label="Mark earlier quarters this year as not applicable" />}
           <TextField label="OKRs" multiline minRows={3} {...form.register("okrs")} />
           <TextField label="Deliverable expected" multiline minRows={2} {...form.register("deliverableExpected")} />
           <TextField label="Evidence note" multiline minRows={2} {...form.register("evidenceNote")} />

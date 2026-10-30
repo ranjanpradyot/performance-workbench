@@ -25,10 +25,13 @@ export function StatusLegend() {
 export function QuarterScoreCell({ score }: { score: QuarterScore | undefined }) {
   if (!score) return <Typography variant="body2" color="text.secondary">—</Typography>;
   return (
-    <Stack direction="row" spacing={0.75} sx={{ alignItems: "center" }}>
-      <StatusIcon status={score.status} title={`${score.label}: ${scoreText(score)}`} />
-      <Typography variant="body2" sx={{ fontWeight: 600 }}>{scoreText(score)}</Typography>
-    </Stack>
+    <Box>
+      <Stack direction="row" spacing={0.75} sx={{ alignItems: "center" }}>
+        <StatusIcon status={score.status} title={`${score.label}: ${scoreText(score)}`} />
+        <Typography variant="body2" sx={{ fontWeight: 600 }}>{scoreText(score)}</Typography>
+      </Stack>
+      {score.unassessed > 0 && <Typography variant="caption" color="text.secondary">{formatMetric(score.unassessed)} not assessed</Typography>}
+    </Box>
   );
 }
 
@@ -41,10 +44,13 @@ export function QuarterScoreCard({ score, color, onKpiClick }: { score: QuarterS
           {score.kpis.map((kpi) => {
             const open = Boolean(onKpiClick && kpi.linked);
             return (
-            <Box key={kpi.id} sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <StatusIcon status={kpi.overridden ? "overridden" : kpi.status} title={kpi.overridden ? `Override: ${kpi.status.replace("_", " ")}` : undefined} />
-              <Typography variant="body2" component={open ? "button" : "p"} onClick={open ? () => onKpiClick?.(kpi.id) : undefined} sx={{ flex: 1, m: 0, p: 0, border: 0, bgcolor: "transparent", color: open ? (mode === "dark" ? "#6E9BFF" : "#004FCC") : "inherit", font: "inherit", fontWeight: open ? 500 : 400, textAlign: "left", cursor: open ? "pointer" : "default" }}>{kpi.name}</Typography>
-              <Typography variant="body2" color="text.secondary">{kpi.weight == null ? "—" : `${formatMetric(kpi.points)} / ${formatMetric(kpi.weight)}`}</Typography>
+            <Box key={kpi.id}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <StatusIcon status={kpi.overridden ? "overridden" : kpi.status} title={kpi.overridden ? `Override: ${kpi.status.replace("_", " ")}` : undefined} />
+                <Typography variant="body2" component={open ? "button" : "p"} onClick={open ? () => onKpiClick?.(kpi.id) : undefined} sx={{ flex: 1, m: 0, p: 0, border: 0, bgcolor: "transparent", color: open ? (mode === "dark" ? "#6E9BFF" : "#004FCC") : "inherit", font: "inherit", fontWeight: open ? 500 : 400, textAlign: "left", cursor: open ? "pointer" : "default" }}>{kpi.name}</Typography>
+                <Typography variant="body2" color="text.secondary">{kpi.weight == null ? "—" : `${formatMetric(kpi.points)} / ${formatMetric(kpi.weight)}`}</Typography>
+              </Box>
+              {kpi.points == null && kpi.status !== "not_applicable" && kpi.actual && <Typography variant="caption" color="text.secondary" sx={{ display: "block", pl: 4 }}>{kpi.actual}</Typography>}
             </Box>
             );
           })}

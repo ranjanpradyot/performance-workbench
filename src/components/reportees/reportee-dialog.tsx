@@ -4,7 +4,7 @@ import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextF
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { reporteeFormSchema } from "@/domain/form-schemas";
-import { addReportee, updateReportee, type ReporteeInput } from "@/domain/mutations";
+import { addReportee, setReporteeStatus, updateReportee, type ReporteeInput } from "@/domain/mutations";
 import type { Reportee } from "@/domain/types";
 import { useWorkbench } from "@/state/workbench-context";
 import { reporteeColor } from "@/theme/reportee-colors";
@@ -56,6 +56,16 @@ export function ReporteeDialog({ open, person, onClose, onSaved }: { open: boole
         </Stack>
       </DialogContent>
       <DialogActions>
+        {person && <Button color="warning" onClick={() => {
+          if (!dataset) return;
+          const restoring = person.status === "archived";
+          if (!restoring && !window.confirm(`Archive ${person.fullName}? Historical quarters, tickets, and evidence stay in the workbook.`)) return;
+          const nextStatus = restoring ? "active" : "archived";
+          void commit(
+            setReporteeStatus(dataset, person.id, nextStatus, restoring ? "Restored from Settings." : "Archived from Settings. Historical appraisals stay linked to the internal id."),
+            restoring ? "Restore reportee" : "Archive reportee",
+          ).then(onClose);
+        }}>{person.status === "archived" ? "Restore" : "Archive"}</Button>}
         <Button onClick={onClose}>Cancel</Button>
         <Button type="submit" form="reportee-form" variant="contained">Save</Button>
       </DialogActions>

@@ -1,8 +1,9 @@
 import "fake-indexeddb/auto";
 import { addReportee } from "@/domain/mutations";
 import { emptyDataset } from "@/infrastructure/excel/dataset";
-import { DatasetRepository, PmsDatabase } from "@/infrastructure/indexeddb/repository";
+import { DatasetRepository, PmsDatabase, seedIfEmpty } from "@/infrastructure/indexeddb/repository";
 import { migrateDataset } from "@/domain/schema";
+import type { WorkbenchDataset } from "@/domain/types";
 
 describe("local persistence", () => {
   it("saves a reportee and reads it back", async () => {
@@ -35,5 +36,69 @@ describe("local persistence", () => {
     await repository.save(next, "add");
     const undone = await repository.undo();
     expect(undone?.reportees).toHaveLength(0);
+  });
+
+  it("replaces IndexedDB when the bundled seed workbook list changes", async () => {
+    const repository = new DatasetRepository(new PmsDatabase("pms-test-reseed"));
+    const oldSeed: WorkbenchDataset = {
+      ...emptyDataset(),
+      application: {
+        ...emptyDataset().application,
+        seededFrom: ["Utkarsh_OKR_Checklist_Linked_0.3.xlsx", "Krishna_OKR_Checklist_Linked_0.3.xlsx"],
+      },
+      tickets: [],
+    };
+    await repository.replace(oldSeed);
+    const newSeed: WorkbenchDataset = {
+      ...emptyDataset(),
+      application: {
+        ...emptyDataset().application,
+        seededFrom: ["Utkarsh_OKR_Checklist_Linked_0.4.xlsx", "Krishna_OKR_Checklist_Linked_0.4.xlsx"],
+      },
+      tickets: [
+        {
+          id: "tkt_rep_utkarsh_42241",
+          reporteeId: "rep_utkarsh",
+          ticketNo: "42241",
+          codeLines: 169,
+          sqlLines: null,
+          cycleDays: null,
+          quarterId: "q3-2026",
+          updatedAt: new Date().toISOString(),
+        },
+      ],
+    };
+    const loaded = await seedIfEmpty(repository, async () => newSeed);
+    expect(loaded.application.seededFrom).toEqual(newSeed.application.seededFrom);
+    expect(loaded.tickets).toHaveLength(1);
+    expect(loaded.tickets[0]?.ticketNo).toBe("42241");
+  });
+
+  it("replaces IndexedDB when the bundled seed revision is newer", async () => {
+    const repository = new DatasetRepository(new PmsDatabase("pms-test-reseed-revision"));
+    const stored: WorkbenchDataset = {
+      ...emptyDataset(),
+      application: { ...emptyDataset().application, revision: 2, seededFrom: ["Santosh_OKR_Checklist_Linked_0.4.xlsx"] },
+    };
+    await repository.replace(stored);
+    const newer: WorkbenchDataset = {
+      ...emptyDataset(),
+      application: { ...emptyDataset().application, revision: 3, seededFrom: ["Santosh_OKR_Checklist_Linked_0.4.xlsx"] },
+      tickets: [
+        {
+          id: "tkt_rep_santosh_45359",
+          reporteeId: "rep_santosh",
+          ticketNo: "45359",
+          codeLines: null,
+          sqlLines: null,
+          cycleDays: null,
+          quarterId: "q3-2026",
+          updatedAt: new Date().toISOString(),
+        },
+      ],
+    };
+    const loaded = await seedIfEmpty(repository, async () => newer);
+    expect(loaded.application.revision).toBe(3);
+    expect(loaded.tickets[0]?.ticketNo).toBe("45359");
   });
 });

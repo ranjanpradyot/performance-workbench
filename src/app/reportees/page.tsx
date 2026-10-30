@@ -17,6 +17,6 @@ export default function ReporteesPage() {
     router.replace(`/reportees/${firstId}`);
   }, [firstId, router]);
 
-  if (dataset && !firstId) return <Alert severity="info">No reportees yet. Use Add reportee to create the first tab.</Alert>;
+  if (dataset && !firstId) return <Alert severity="info">No reportees yet. Add one from Settings.</Alert>;
   return null;
 }
